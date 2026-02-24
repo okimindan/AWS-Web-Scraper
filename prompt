@@ -1,0 +1,28 @@
+AWSで以下の構成のアプリを作りたいので実装を手伝ってください。
+
+# 要件
+- S3の静的サイトにキーワード入力フォームを作る
+- フォーム送信でAPI Gatewayを呼ぶ
+- API GatewayからLambdaを実行
+- LambdaでPythonスクレイピングを実行
+- 指定したキーワードを使ってWebサイトから情報取得
+- 結果をJSONで返す
+
+# 詳細
+- フロント: S3 Static Website Hosting
+- API: API Gateway (REST or HTTP APIどちらでもOK)
+- バックエンド: Lambda Python 3.x
+- スクレイピング: requests + BeautifulSoup
+- CORS設定必要
+- デプロイ手順も説明して
+
+# 出力してほしいもの
+1. 全体アーキテクチャ図（テキストでOK）
+2. フロントHTMLコード
+3. Lambdaコード
+4. API Gateway設定手順
+5. IAMロール設定
+6. デプロイ手順
+7. 将来的な拡張案
+
+不明点があればなんでも聞いて
