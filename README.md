@@ -5,5 +5,7 @@
 | IAM ロール | web-scraper-lambda-role |
 | Lambda 関数 | web-scraper-function |
 | API Gateway | web-scraper-api |
-| S3 バケット | web-scraper-frontend-869807375374 |
+| S3 バケット（静的ホスト/画像保存） | web-scraper-frontend-869807375374 |
 
+- スクレイピングするためのAPI
+  - Brave Search API
