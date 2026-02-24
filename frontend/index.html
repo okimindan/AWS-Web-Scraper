@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AWS Web Scraper</title>
+  <style>
+    :root {
+      --primary:      #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg:           #f1f5f9;
+      --card:         #ffffff;
+      --text:         #1e293b;
+      --muted:        #64748b;
+      --border:       #e2e8f0;
+      --error:        #ef4444;
+      --green:        #10b981;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                   'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+      color: #fff;
+      padding: 2.25rem 1rem;
+      text-align: center;
+    }
+    header h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: .4rem; }
+    header p  { opacity: .85; font-size: .95rem; }
+
+    /* ── Layout ── */
+    main {
+      max-width: 820px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Form ── */
+    .form-group { margin-bottom: 1.25rem; }
+
+    label {
+      display: block;
+      font-weight: 500;
+      font-size: .9rem;
+      margin-bottom: .45rem;
+    }
+    label .req { color: var(--error); margin-left: .2rem; }
+    label .opt { color: var(--muted); font-weight: 400; font-size: .78rem; margin-left: .35rem; }
+
+    input[type="text"], input[type="url"] {
+      width: 100%;
+      padding: .75rem 1rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      color: var(--text);
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+      background: #fafafa;
+    }
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+      background: #fff;
+    }
+    input::placeholder { color: #94a3b8; }
+
+    .btn {
+      width: 100%;
+      padding: .9rem;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s, transform .1s;
+      letter-spacing: .02em;
+    }
+    .btn:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn:active:not(:disabled) { transform: scale(.99); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ── Loading ── */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .75rem;
+      padding: 2rem;
+      color: var(--muted);
+    }
+    .spinner {
+      width: 26px; height: 26px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error ── */
+    .error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      color: #dc2626;
+      font-size: .9rem;
+    }
+
+    /* ── Results ── */
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      gap: .5rem;
+      flex-wrap: wrap;
+    }
+    .result-header h2 { font-size: 1.05rem; font-weight: 600; }
+
+    .badge {
+      background: #dbeafe;
+      color: #1d4ed8;
+      padding: .2rem .65rem;
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* Search result cards */
+    .result-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      margin-bottom: .75rem;
+      transition: box-shadow .2s;
+    }
+    .result-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .result-item h3 { font-size: .97rem; font-weight: 600; margin-bottom: .2rem; }
+    .result-item h3 a { color: var(--primary); text-decoration: none; }
+    .result-item h3 a:hover { text-decoration: underline; }
+    .result-url { font-size: .78rem; color: var(--green); margin-bottom: .35rem; word-break: break-all; }
+    .result-snippet { font-size: .88rem; color: var(--muted); line-height: 1.55; }
+
+    /* Scrape match blocks */
+    .info-box {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 8px;
+      padding: .85rem 1rem;
+      font-size: .875rem;
+      color: #0369a1;
+      margin-bottom: 1.1rem;
+      word-break: break-word;
+    }
+    .info-box strong { display: block; margin-bottom: .3rem; font-size: .95rem; }
+    .info-box .meta  { color: #0284c7; margin-top: .25rem; font-size: .8rem; }
+
+    .match-item {
+      background: #f8fafc;
+      border-left: 3px solid var(--primary);
+      border-radius: 0 6px 6px 0;
+      padding: .75rem 1rem;
+      margin-bottom: .55rem;
+      font-size: .9rem;
+      line-height: 1.65;
+      color: var(--text);
+    }
+
+    .no-result { color: var(--muted); font-size: .9rem; padding: .5rem 0; }
+
+    /* ── Images ── */
+    .images-section { margin-top: 1.5rem; }
+    .images-section h3 {
+      font-size: .95rem;
+      font-weight: 600;
+      margin-bottom: .85rem;
+      color: var(--text);
+    }
+    .image-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: .75rem;
+    }
+    .image-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f8fafc;
+      transition: box-shadow .2s;
+    }
+    .image-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+    .image-card a { display: block; }
+    .image-card img {
+      width: 100%;
+      height: 110px;
+      object-fit: cover;
+      display: block;
+    }
+    .image-card .img-alt {
+      padding: .35rem .5rem;
+      font-size: .72rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hidden { display: none; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.45rem; }
+      .card { padding: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>AWS Web Scraper</h1>
+  <p>キーワードでWebページを検索・スクレイピングします</p>
+</header>
+
+<main>
+  <!-- ── フォーム ── -->
+  <div class="card">
+    <form id="scrapeForm">
+      <div class="form-group">
+        <label for="keyword">キーワード<span class="req">*</span></label>
+        <input type="text" id="keyword" placeholder="例: Python スクレイピング" autocomplete="off" required>
+      </div>
+
+      <div class="form-group">
+        <label for="url">
+          対象URL<span class="opt">（省略するとDuckDuckGoで検索）</span>
+        </label>
+        <input type="url" id="url" placeholder="https://example.com/article">
+      </div>
+
+      <button type="submit" class="btn" id="submitBtn">検索 / スクレイピング</button>
+    </form>
+  </div>
+
+  <!-- ── ローディング ── -->
+  <div id="loadingDiv" class="card hidden">
+    <div class="loading">
+      <div class="spinner"></div>
+      <span>取得中...</span>
+    </div>
+  </div>
+
+  <!-- ── エラー ── -->
+  <div id="errorDiv" class="hidden" style="margin-bottom:1.5rem">
+    <div class="error-box" id="errorMsg"></div>
+  </div>
+
+  <!-- ── 結果 ── -->
+  <div id="resultsDiv" class="card hidden"></div>
+</main>
+
+<footer>Powered by AWS S3 + API Gateway + Lambda</footer>
+
+<script>
+  // ★ デプロイスクリプトが __API_URL__ を実際のエンドポイントに置換します
+  const API_URL = '__API_URL__';
+
+  const form      = document.getElementById('scrapeForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const loadingDiv = document.getElementById('loadingDiv');
+  const errorDiv  = document.getElementById('errorDiv');
+  const errorMsg  = document.getElementById('errorMsg');
+  const resultsDiv = document.getElementById('resultsDiv');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const keyword = document.getElementById('keyword').value.trim();
+    const url     = document.getElementById('url').value.trim();
+    if (!keyword) return;
+
+    setLoading(true);
+    clearResults();
+
+    try {
+      const payload = { keyword };
+      if (url) payload.url = url;
+
+      const res  = await fetch(API_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        showError(data.error || `HTTPエラー: ${res.status}`);
+        return;
+      }
+
+      renderResults(data);
+    } catch (err) {
+      showError(`通信エラー: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // ─── UI helpers ────────────────────────────────────────────
+
+  function setLoading(on) {
+    submitBtn.disabled    = on;
+    submitBtn.textContent = on ? '処理中...' : '検索 / スクレイピング';
+    loadingDiv.classList.toggle('hidden', !on);
+  }
+
+  function clearResults() {
+    errorDiv.classList.add('hidden');
+    resultsDiv.classList.add('hidden');
+    resultsDiv.innerHTML = '';
+  }
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorDiv.classList.remove('hidden');
+  }
+
+  // ─── Result renderers ──────────────────────────────────────
+
+  function renderResults(data) {
+    if (data.mode === 'search') renderSearch(data);
+    else if (data.mode === 'scrape') renderScrape(data);
+    resultsDiv.classList.remove('hidden');
+  }
+
+  function renderSearch(data) {
+    const count    = data.results?.length ?? 0;
+    const imgCount = data.image_count ?? 0;
+    let html = `
+      <div class="result-header">
+        <h2>検索結果: &ldquo;${esc(data.keyword)}&rdquo;</h2>
+        <span class="badge">${count} 件</span>
+      </div>`;
+
+    if (count === 0) {
+      html += '<p class="no-result">結果が見つかりませんでした。</p>';
+    } else {
+      data.results.forEach(r => {
+        html += `
+        <div class="result-item">
+          <h3><a href="${safeUrl(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}</a></h3>
+          <div class="result-url">${esc(r.display_url || r.url)}</div>
+          <div class="result-snippet">${esc(r.snippet)}</div>
+        </div>`;
+      });
+    }
+
+    // ── 画像セクション ──
+    if (data.images && data.images.length > 0) {
+      html += `
+        <div class="images-section">
+          <h3>関連画像 (${imgCount} 枚)</h3>
+          <div class="image-grid">`;
+      data.images.forEach(img => {
+        const s3  = esc(img.s3_url);
+        const alt = esc(img.alt) || '画像';
+        html += `
+            <div class="image-card">
+              <a href="${s3}" target="_blank" rel="noopener noreferrer">
+                <img src="${s3}" alt="${alt}" loading="lazy"
+                     onerror="this.closest('.image-card').style.display='none'">
+              </a>
+              <div class="img-alt">${alt}</div>
+            </div>`;
+      });
+      html += `</div></div>`;
+    }
+
+    resultsDiv.innerHTML = html;
+  }
+
+  function renderScrape(data) {
+    const count      = data.match_count  ?? 0;
+    const imgCount   = data.image_count  ?? 0;
+    let html = `
+      <div class="result-header">
+        <h2>スクレイピング結果: &ldquo;${esc(data.keyword)}&rdquo;</h2>
+        <span class="badge">${count} マッチ</span>
+      </div>
+      <div class="info-box">
+        <strong>${esc(data.title)}</strong>
+        <span>${esc(data.url)}</span>
+        ${data.description ? `<span class="meta">${esc(data.description)}</span>` : ''}
+      </div>`;
+
+    if (!data.matches || data.matches.length === 0) {
+      html += `<p class="no-result">「${esc(data.keyword)}」を含む箇所が見つかりませんでした。</p>`;
+    } else {
+      data.matches.forEach(m => {
+        html += `<div class="match-item">${esc(m)}</div>`;
+      });
+    }
+
+    // ── 画像セクション ──
+    if (data.images && data.images.length > 0) {
+      html += `
+        <div class="images-section">
+          <h3>取得した画像 (${imgCount} 枚)</h3>
+          <div class="image-grid">`;
+      data.images.forEach(img => {
+        const s3  = esc(img.s3_url);
+        const alt = esc(img.alt) || '画像';
+        html += `
+            <div class="image-card">
+              <a href="${s3}" target="_blank" rel="noopener noreferrer">
+                <img src="${s3}" alt="${alt}" loading="lazy"
+                     onerror="this.closest('.image-card').style.display='none'">
+              </a>
+              <div class="img-alt">${alt}</div>
+            </div>`;
+      });
+      html += `</div></div>`;
+    }
+
+    resultsDiv.innerHTML = html;
+  }
+
+  // ─── Security helpers ──────────────────────────────────────
+
+  function esc(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;');
+  }
+
+  function safeUrl(str) {
+    if (!str) return '#';
+    try {
+      const u = new URL(str);
+      if (u.protocol === 'http:' || u.protocol === 'https:') return esc(str);
+    } catch (_) {}
+    return '#';
+  }
+</script>
+
+</body>
+</html>
